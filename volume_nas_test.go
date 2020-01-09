@@ -7,10 +7,11 @@ import (
 )
 
 func TestNewVolumeDaemon(t *testing.T) {
-	vd := nas.NewVolumeDaemon(&nas.VolumeDaemonOption{
-		LoadVolumeMountOptions: func() []nas.VolumeMountOption {
-			return []nas.VolumeMountOption{
-				nas.VolumeMountOption{
+	vd := nas.NewVolumeDaemon(&nas.AresNasVolumeDaemonOption{
+		CheckInterval: 30 * time.Second,
+		LoadNasVolumeMountOptions: func() []nas.AresNasVolumeMountOption {
+			return []nas.AresNasVolumeMountOption{
+				nas.AresNasVolumeMountOption{
 					Name:   "Y",
 					NodeIp: "10.20.0.13",
 					Nas: []nas.VolumeDef{
