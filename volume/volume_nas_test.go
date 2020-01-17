@@ -1,20 +1,20 @@
-package nas_test
+package volume_test
 
 import (
-	nas "github.com/swift9/ares-nas"
+	"github.com/swift9/ares-nas/volume"
 	"testing"
 	"time"
 )
 
 func TestNewVolumeDaemon(t *testing.T) {
-	vd := nas.NewVolumeDaemon(&nas.AresNasVolumeDaemonOption{
+	vd := volume.NewVolumeDaemon(&volume.NasVolumeDaemonOption{
 		CheckInterval: 30 * time.Second,
-		LoadNasVolumeMountOptions: func() []nas.AresNasVolumeMountOption {
-			return []nas.AresNasVolumeMountOption{
-				nas.AresNasVolumeMountOption{
+		LoadNasVolumeMountOptions: func() []volume.NasVolumeMountOption {
+			return []volume.NasVolumeMountOption{
+				volume.NasVolumeMountOption{
 					Name:   "Y",
 					NodeIp: "10.20.0.13",
-					Nas: []nas.VolumeDef{
+					Nas: []volume.NasVolumeDef{
 						{
 							FsType:   "smb",
 							Server:   "10.20.0.100",

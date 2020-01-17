@@ -1,4 +1,4 @@
-package nas
+package volume
 
 import (
 	"github.com/swift9/ares-nas/utils"
@@ -6,22 +6,23 @@ import (
 	"time"
 )
 
-type VolumeDef struct {
+type NasVolumeDef struct {
 	FsType   string
 	Server   string
 	Path     string
 	User     string
 	Password string
 	MountTo  string
+	Group    string
 }
 
-type AresNasVolumeMountOption struct {
+type NasVolumeMountOption struct {
 	Name   string
 	NodeIp string
-	Nas    []VolumeDef
+	Nas    []NasVolumeDef
 }
 
-type Volume interface {
+type NasVolume interface {
 	IsMounted() bool
 	Mount() error
 	UMount() error
@@ -29,53 +30,53 @@ type Volume interface {
 	GetServer() string
 }
 
-type AresNasVolumeProxy struct {
+type NasVolumeProxy struct {
 	Name              string
 	Node              string
-	VolumeMountOption AresNasVolumeMountOption
+	VolumeMountOption NasVolumeMountOption
 	DefaultIndex      int
 	Index             int
-	Volumes           []Volume
+	Volumes           []NasVolume
 	VolumesMd5        string
 }
 
-func (vp *AresNasVolumeProxy) Mount() error {
+func (vp *NasVolumeProxy) Mount() error {
 	volume := vp.GetVolume()
 	err := volume.Mount()
 	return err
 }
 
-func (vp *AresNasVolumeProxy) MountNextVolume() error {
+func (vp *NasVolumeProxy) MountNextVolume() error {
 	vp.UMount()
 	volume := vp.SelectNextVolume()
 	err := volume.Mount()
 	return err
 }
 
-func (vp *AresNasVolumeProxy) ResumeDefaultMount() error {
+func (vp *NasVolumeProxy) ResumeDefaultMount() error {
 	vp.UMount()
 	vp.Index = -1
 	return vp.Mount()
 }
 
-func (vp *AresNasVolumeProxy) UMount() error {
+func (vp *NasVolumeProxy) UMount() error {
 	volume := vp.GetVolume()
 	return volume.UMount()
 }
 
-func (vp *AresNasVolumeProxy) IsMounted() bool {
+func (vp *NasVolumeProxy) IsMounted() bool {
 	return vp.GetVolume().IsMounted()
 }
 
-func (vp *AresNasVolumeProxy) IsHealth() bool {
+func (vp *NasVolumeProxy) IsHealth() bool {
 	return vp.GetVolume().IsHealth()
 }
 
-func (vp *AresNasVolumeProxy) GetServer() string {
+func (vp *NasVolumeProxy) GetServer() string {
 	return vp.GetVolume().GetServer()
 }
 
-func (vp *AresNasVolumeProxy) SelectNextVolume() Volume {
+func (vp *NasVolumeProxy) SelectNextVolume() NasVolume {
 	if vp.Index == -1 {
 		vp.Index = vp.GetDefaultIndex()
 	} else {
@@ -84,31 +85,31 @@ func (vp *AresNasVolumeProxy) SelectNextVolume() Volume {
 	return vp.Volumes[vp.Index%len(vp.Volumes)]
 }
 
-func (vp *AresNasVolumeProxy) GetVolume() Volume {
+func (vp *NasVolumeProxy) GetVolume() NasVolume {
 	if vp.Index == -1 {
 		vp.Index = vp.GetDefaultIndex()
 	}
 	return vp.Volumes[vp.Index%len(vp.Volumes)]
 }
 
-func (vp *AresNasVolumeProxy) GetDefaultVolume() Volume {
+func (vp *NasVolumeProxy) GetDefaultVolume() NasVolume {
 	return vp.Volumes[vp.GetDefaultIndex()%len(vp.Volumes)]
 }
 
-func (vp *AresNasVolumeProxy) GetDefaultIndex() int {
+func (vp *NasVolumeProxy) GetDefaultIndex() int {
 	vp.DefaultIndex = utils.GetLastNumberOfIp(vp.Node)
 	return vp.DefaultIndex
 }
 
-func newAresNasVolumeProxy(volumeMountOption AresNasVolumeMountOption, log Logger) *AresNasVolumeProxy {
+func newNasVolumeProxy(volumeMountOption NasVolumeMountOption, log Logger) *NasVolumeProxy {
 	volumesMd5 := utils.ObjectToMd5(volumeMountOption)
-	volumes := make([]Volume, 0)
+	volumes := make([]NasVolume, 0)
 	for _, nas := range volumeMountOption.Nas {
-		func(s VolumeDef) {
+		func(s NasVolumeDef) {
 			volumes = append(volumes, NewNasVolumeInstance(s, log))
 		}(nas)
 	}
-	volumeProxy := AresNasVolumeProxy{
+	volumeProxy := NasVolumeProxy{
 		Name:         volumeMountOption.Name,
 		Node:         volumeMountOption.NodeIp,
 		VolumesMd5:   volumesMd5,
@@ -133,33 +134,33 @@ func (l *emptyLogger) Info(args ...interface{}) {
 func (l *emptyLogger) Error(args ...interface{}) {
 }
 
-type AresNasVolumeDaemon struct {
+type NasVolumeDaemon struct {
 	volumeDefsMd5      string
 	volumeProxyMap     sync.Map
-	volumeDaemonOption *AresNasVolumeDaemonOption
+	volumeDaemonOption *NasVolumeDaemonOption
 }
 
-type AresNasVolumeDaemonOption struct {
+type NasVolumeDaemonOption struct {
 	CheckInterval             time.Duration
 	Log                       Logger
-	LoadNasVolumeMountOptions func() []AresNasVolumeMountOption
+	LoadNasVolumeMountOptions func() []NasVolumeMountOption
 }
 
-func NewVolumeDaemon(opt *AresNasVolumeDaemonOption) *AresNasVolumeDaemon {
+func NewVolumeDaemon(opt *NasVolumeDaemonOption) *NasVolumeDaemon {
 	if opt.Log == nil {
 		opt.Log = &emptyLogger{}
 	}
-	vd := &AresNasVolumeDaemon{
+	vd := &NasVolumeDaemon{
 		volumeProxyMap:     sync.Map{},
 		volumeDaemonOption: opt,
 	}
 	return vd
 }
 
-func (vd *AresNasVolumeDaemon) Start() {
+func (vd *NasVolumeDaemon) Start() {
 	defer func() {
 		if err := recover(); err != nil {
-			vd.GetLog().Error("AresNasVolumeDaemon Start error ", err)
+			vd.GetLog().Error("NasVolumeDaemon Start error ", err)
 		}
 	}()
 
@@ -167,7 +168,7 @@ func (vd *AresNasVolumeDaemon) Start() {
 		vd.autoMount()
 		isMounted := true
 		vd.volumeProxyMap.Range(func(key, value interface{}) bool {
-			volumeProxy, _ := value.(*AresNasVolumeProxy)
+			volumeProxy, _ := value.(*NasVolumeProxy)
 			if volumeProxy.IsHealth() && volumeProxy.IsMounted() {
 				return true
 			}
@@ -188,11 +189,11 @@ func (vd *AresNasVolumeDaemon) Start() {
 	}()
 }
 
-func (vd *AresNasVolumeDaemon) GetLog() Logger {
+func (vd *NasVolumeDaemon) GetLog() Logger {
 	return vd.volumeDaemonOption.Log
 }
 
-func (vd *AresNasVolumeDaemon) GetCheckInterval() time.Duration {
+func (vd *NasVolumeDaemon) GetCheckInterval() time.Duration {
 	defaultCheckInterval := 5 * time.Second
 	if defaultCheckInterval.Seconds() > vd.volumeDaemonOption.CheckInterval.Seconds() {
 		return defaultCheckInterval
@@ -200,10 +201,10 @@ func (vd *AresNasVolumeDaemon) GetCheckInterval() time.Duration {
 	return vd.volumeDaemonOption.CheckInterval
 }
 
-func (vd *AresNasVolumeDaemon) autoMount() {
+func (vd *NasVolumeDaemon) autoMount() {
 	defer func() {
 		if err := recover(); err != nil {
-			vd.GetLog().Error("AresNasVolumeDaemon autoMount error ", err)
+			vd.GetLog().Error("NasVolumeDaemon autoMount error ", err)
 		}
 	}()
 	volumeMountOptions, _ := vd.refreshVolumeMountOptions()
@@ -211,7 +212,7 @@ func (vd *AresNasVolumeDaemon) autoMount() {
 		vd.onVolumeMountOptionsChange(volumeMountOptions)
 	}
 	vd.volumeProxyMap.Range(func(key, value interface{}) bool {
-		volumeProxy, _ := value.(*AresNasVolumeProxy)
+		volumeProxy, _ := value.(*NasVolumeProxy)
 		if volumeProxy.IsHealth() {
 			if !volumeProxy.IsMounted() {
 				volumeProxy.Mount()
@@ -228,7 +229,7 @@ func (vd *AresNasVolumeDaemon) autoMount() {
 	})
 }
 
-func (vd *AresNasVolumeDaemon) refreshVolumeMountOptions() ([]AresNasVolumeMountOption, bool) {
+func (vd *NasVolumeDaemon) refreshVolumeMountOptions() ([]NasVolumeMountOption, bool) {
 	volumeDefs := vd.volumeDaemonOption.LoadNasVolumeMountOptions()
 	if len(volumeDefs) == 0 {
 		return nil, false
@@ -240,24 +241,24 @@ func (vd *AresNasVolumeDaemon) refreshVolumeMountOptions() ([]AresNasVolumeMount
 	return volumeDefs, true
 }
 
-func (vd *AresNasVolumeDaemon) onVolumeMountOptionsChange(volumeMountOptions []AresNasVolumeMountOption) error {
+func (vd *NasVolumeDaemon) onVolumeMountOptionsChange(volumeMountOptions []NasVolumeMountOption) error {
 	volumeProxyMap := sync.Map{}
 	for _, volumeDef := range volumeMountOptions {
-		volumeProxy := newAresNasVolumeProxy(volumeDef, vd.GetLog())
+		volumeProxy := newNasVolumeProxy(volumeDef, vd.GetLog())
 		volumeProxyMap.Store(volumeDef.Name, volumeProxy)
 	}
 
 	// 删除已移除的磁盘，保留老盘
 	vd.volumeProxyMap.Range(func(key, value interface{}) bool {
-		oldVolumeProxy, _ := value.(*AresNasVolumeProxy)
+		oldVolumeProxy, _ := value.(*NasVolumeProxy)
 		var newVolumeProxyInterface interface{}
-		var newVolumeProxy *AresNasVolumeProxy
+		var newVolumeProxy *NasVolumeProxy
 		var ok = false
 		if newVolumeProxyInterface, ok = volumeProxyMap.Load(key); !ok {
 			oldVolumeProxy.UMount()
 			return true
 		}
-		newVolumeProxy, _ = newVolumeProxyInterface.(*AresNasVolumeProxy)
+		newVolumeProxy, _ = newVolumeProxyInterface.(*NasVolumeProxy)
 		if newVolumeProxy.VolumesMd5 == oldVolumeProxy.VolumesMd5 {
 			volumeProxyMap.Store(key, oldVolumeProxy)
 		}

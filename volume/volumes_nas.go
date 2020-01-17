@@ -1,4 +1,4 @@
-package nas
+package volume
 
 import (
 	"errors"
@@ -10,12 +10,12 @@ import (
 	"time"
 )
 
-func NewNasVolumeInstance(nasVolume VolumeDef, log Logger) Volume {
+func NewNasVolumeInstance(nasVolume NasVolumeDef, log Logger) NasVolume {
 	if nasVolume.FsType == "smb" {
 		smb := SmbVolume{
-			VolumeDef: nasVolume,
-			Mounted:   false,
-			log:       log,
+			NasVolumeDef: nasVolume,
+			Mounted:      false,
+			log:          log,
 		}
 		return &smb
 	}
@@ -24,7 +24,7 @@ func NewNasVolumeInstance(nasVolume VolumeDef, log Logger) Volume {
 }
 
 type SmbVolume struct {
-	VolumeDef
+	NasVolumeDef
 	Mounted bool
 	log     Logger
 }
